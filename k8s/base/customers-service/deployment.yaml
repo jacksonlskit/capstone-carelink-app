@@ -23,7 +23,7 @@ spec:
               app: customers-service
       containers:
         - name: customers-service
-          image: 255945442255.dkr.ecr.us-east-1.amazonaws.com/carelink-staging-customers-service:latest
+          image: carelink-customers-service
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8081
@@ -32,6 +32,12 @@ spec:
               value: "8081"
             - name: MANAGEMENT_ENDPOINT_RESTART_ENABLED
               value: "true"
+            - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
+              value: "*"
+            - name: SPRING_CLOUD_KUBERNETES_RELOAD_ENABLED
+              value: "false"
+            - name: MANAGEMENT_METRICS_EXPORT_WAVEFRONT_ENABLED
+              value: "false"
             - name: JAVA_TOOL_OPTIONS
               value: "-XX:+UseContainerSupport -XX:MaxRAMPercentage=70.0 -XX:+UseSerialGC -XX:ActiveProcessorCount=2"
           resources:
