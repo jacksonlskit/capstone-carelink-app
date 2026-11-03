@@ -1,0 +1,7 @@
+global:
+  replicaCount: 1
+  imagePrefix: "carelink-staging"
+
+ingress:
+  enabled: false # Set to true once ALB Controller and domain are mapped
+  host: "staging.carelink.sandbox.com"
