@@ -1,19 +1,18 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: visits-service
-  namespace: staging
+  name: vets-service
   labels:
-    app: visits-service
+    app: vets-service
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: visits-service
+      app: vets-service
   template:
     metadata:
       labels:
-        app: visits-service
+        app: vets-service
     spec:
       topologySpreadConstraints:
         - maxSkew: 1
@@ -21,16 +20,16 @@ spec:
           whenUnsatisfiable: ScheduleAnyway
           labelSelector:
             matchLabels:
-              app: visits-service
+              app: vets-service
       containers:
-        - name: visits-service
-          image: 255945442255.dkr.ecr.us-east-1.amazonaws.com/carelink-staging-visits-service:latest
+        - name: vets-service
+          image: carelink-vets-service
           imagePullPolicy: IfNotPresent
           ports:
-            - containerPort: 8083
+            - containerPort: 8082
           env:
             - name: SERVER_PORT
-              value: "8083"
+              value: "8082"
             - name: MANAGEMENT_ENDPOINT_RESTART_ENABLED
               value: "true"
             - name: JAVA_TOOL_OPTIONS
@@ -45,19 +44,19 @@ spec:
           startupProbe:
             httpGet:
               path: /actuator/health/liveness
-              port: 8083
+              port: 8082
             initialDelaySeconds: 25
             periodSeconds: 10
             failureThreshold: 30
           livenessProbe:
             httpGet:
               path: /actuator/health/liveness
-              port: 8083
+              port: 8082
             periodSeconds: 15
             failureThreshold: 3
           readinessProbe:
             httpGet:
               path: /actuator/health/readiness
-              port: 8083
+              port: 8082
             periodSeconds: 10
             failureThreshold: 3
