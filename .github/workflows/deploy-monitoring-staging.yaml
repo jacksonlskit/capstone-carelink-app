@@ -1,0 +1,95 @@
+```yaml
+name: Deploy Monitoring to Staging
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy-monitoring:
+    name: Deploy Prometheus, Loki and Grafana
+    runs-on: ubuntu-latest
+    environment: staging
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Install Helm
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+          helm version
+
+      - name: Configure EKS Access
+        run: |
+          aws eks update-kubeconfig \
+            --region "${{ vars.AWS_REGION }}" \
+            --name carelink-staging-eks
+
+      - name: Verify EKS Access
+        run: |
+          kubectl get nodes
+          kubectl get storageclass
+
+      - name: Create Monitoring Namespace
+        run: |
+          kubectl create namespace monitoring \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Create Grafana Admin Secret
+        env:
+          GRAFANA_PASSWORD: ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
+        run: |
+          if [ -z "$GRAFANA_PASSWORD" ]; then
+            echo "GRAFANA_ADMIN_PASSWORD secret is missing"
+            exit 1
+          fi
+
+          kubectl create secret generic grafana-admin \
+            --namespace monitoring \
+            --from-literal=admin-user=admin \
+            --from-literal=admin-password="$GRAFANA_PASSWORD" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Add Helm Repositories
+        run: |
+          helm repo add prometheus-community \
+            https://prometheus-community.github.io/helm-charts
+          helm repo add grafana \
+            https://grafana.github.io/helm-charts
+          helm repo update
+
+      - name: Deploy Loki
+        run: |
+          helm upgrade --install loki grafana/loki \
+            --namespace monitoring \
+            --values k8s/monitoring/loki-values.yaml \
+            --wait --timeout 15m
+
+      - name: Deploy Prometheus and Grafana
+        run: |
+          helm upgrade --install monitoring-prometheus \
+            prometheus-community/kube-prometheus-stack \
+            --namespace monitoring \
+            --values k8s/monitoring/prometheus-values.yaml \
+            --set grafana.admin.existingSecret=grafana-admin \
+            --set grafana.admin.userKey=admin-user \
+            --set grafana.admin.passwordKey=admin-password \
+            --wait --timeout 15m
+
+      - name: Verify Monitoring Deployments
+        run: |
+          kubectl get pods -n monitoring
+          kubectl get services -n monitoring
+          kubectl get pvc -n monitoring
+```
