@@ -32,6 +32,12 @@ spec:
               value: "8082"
             - name: MANAGEMENT_ENDPOINT_RESTART_ENABLED
               value: "true"
+            - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
+              value: "*"
+            - name: SPRING_CLOUD_KUBERNETES_RELOAD_ENABLED
+              value: "false"
+            - name: MANAGEMENT_METRICS_EXPORT_WAVEFRONT_ENABLED
+              value: "false"
             - name: JAVA_TOOL_OPTIONS
               value: "-XX:+UseContainerSupport -XX:MaxRAMPercentage=70.0 -XX:+UseSerialGC -XX:ActiveProcessorCount=2"
           resources:
