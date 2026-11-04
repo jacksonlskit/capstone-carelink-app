@@ -38,7 +38,9 @@ jobs:
 
       # Security Gate 1: SCA Scan for vulnerable dependencies
       - name: Run Trivy Dependency Vulnerability Scanner (SCA)
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.28.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           scan-type: 'fs'
           scan-ref: '.'
@@ -77,7 +79,9 @@ jobs:
 
       # Security Gate 2: Container Base Image & Runtime Scan
       - name: Scan Container Image for Vulnerabilities
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.28.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           image-ref: 'carelink/${{ matrix.service }}:${{ github.sha }}'
           severity: 'CRITICAL'
