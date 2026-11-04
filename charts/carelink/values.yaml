@@ -1,0 +1,48 @@
+global:
+  replicaCount: 1
+  imageRegistry: "255945442255.dkr.ecr.us-east-1.amazonaws.com"
+  imagePrefix: "carelink-staging"
+  imageTag: "latest"
+
+ingress:
+  enabled: false
+  host: "staging.carelink.sandbox.com"
+  certificateArn: ""
+
+services:
+  api-gateway:
+    port: 8080
+    resources:
+      requests:
+        cpu: "150m"
+        memory: "384Mi"
+      limits:
+        cpu: "500m"
+        memory: "600Mi"
+  customers-service:
+    port: 8081
+    resources:
+      requests:
+        cpu: "150m"
+        memory: "384Mi"
+      limits:
+        cpu: "500m"
+        memory: "600Mi"
+  vets-service:
+    port: 8082
+    resources:
+      requests:
+        cpu: "150m"
+        memory: "384Mi"
+      limits:
+        cpu: "500m"
+        memory: "600Mi"
+  visits-service:
+    port: 8083
+    resources:
+      requests:
+        cpu: "150m"
+        memory: "384Mi"
+      limits:
+        cpu: "500m"
+        memory: "600Mi"
