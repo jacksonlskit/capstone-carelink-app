@@ -36,17 +36,15 @@ jobs:
       - name: Compile and Test
         run: ./mvnw clean test -B
 
-      # Security Gate 1: SCA Scan for vulnerable dependencies
+      # Security Gate 1: SCA Scan for vulnerable dependencies via Trivy container
       - name: Run Trivy Dependency Vulnerability Scanner (SCA)
-        uses: aquasecurity/trivy-action@0.28.0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          scan-type: 'fs'
-          scan-ref: '.'
-          severity: 'CRITICAL,HIGH'
-          exit-code: '1'
-          trivyignores: '.trivyignore'
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}:/workspace \
+            -w /workspace \
+            aquasec/trivy:latest fs . \
+            --severity CRITICAL,HIGH \
+            --exit-code 1
 
   # ============================================================================
   # 2. Container Image Build & Vulnerability Scan
@@ -77,16 +75,17 @@ jobs:
             -t carelink/${{ matrix.service }}:${{ github.sha }} \
             -f services/${{ matrix.service }}/Dockerfile .
 
-      # Security Gate 2: Container Base Image & Runtime Scan
+      # Security Gate 2: Container Base Image & Runtime Scan via Docker socket
       - name: Scan Container Image for Vulnerabilities
-        uses: aquasecurity/trivy-action@0.28.0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          image-ref: 'carelink/${{ matrix.service }}:${{ github.sha }}'
-          severity: 'CRITICAL'
-          exit-code: '1'
-          trivyignores: '.trivyignore'
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v ${{ github.workspace }}:/workspace \
+            -w /workspace \
+            aquasec/trivy:latest image \
+            --severity CRITICAL \
+            --exit-code 1 \
+            carelink/${{ matrix.service }}:${{ github.sha }}
 
   # ============================================================================
   # 3. Aggregated Status Check for Branch Protection Rulesets
