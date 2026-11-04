@@ -33,16 +33,20 @@ jobs:
       - name: Ensure Maven Wrapper Executable
         run: chmod +x ./mvnw
 
-      - name: Compile and Test
-        run: ./mvnw clean test -B
+      # Install populates the ~/.m2 cache with all reactor and transitive POMs
+      - name: Compile, Test and Install to Local M2 Cache
+        run: ./mvnw clean install -B
 
-      # Security Gate 1: SCA Scan for vulnerable dependencies via Trivy container
+      # Security Gate 1: SCA Scan using pre-cached local dependencies and --offline-scan
       - name: Run Trivy Dependency Vulnerability Scanner (SCA)
         run: |
           docker run --rm \
+            -v /home/runner/.m2:/root/.m2:ro \
             -v ${{ github.workspace }}:/workspace \
             -w /workspace \
             aquasec/trivy:latest fs . \
+            --scanners vuln \
+            --offline-scan \
             --severity CRITICAL,HIGH \
             --exit-code 1
 
