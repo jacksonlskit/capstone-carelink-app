@@ -6,7 +6,7 @@ global:
 
 ingress:
   enabled: false
-  host: "staging.carelink.sandbox.com"
+  host: "staging.carelink.sctp-sandbox.com"
   certificateArn: ""
 
 services:
