@@ -1,16 +1,26 @@
 global:
-  replicaCount: 1
+  environment: base
   imageRegistry: "255945442255.dkr.ecr.us-east-1.amazonaws.com"
-  imagePrefix: "carelink-staging"
-  imageTag: "latest"
+  imagePullPolicy: IfNotPresent
 
+# Default Ingress is disabled in base; activated via environment values files
 ingress:
   enabled: false
-  host: "staging.carelink.sctp-sandbox.com"
-  certificateArn: ""
+  className: "alb"
+  path: "/"
+  pathType: "Prefix"
+  service:
+    name: "api-gateway"
+    port: 8080
+  annotations: {}
 
 services:
-  api-gateway:
+  apiGateway:
+    name: api-gateway
+    image:
+      repository: "carelink/api-gateway"
+      tag: "latest"
+    replicaCount: 2
     port: 8080
     resources:
       requests:
@@ -18,8 +28,26 @@ services:
         memory: "384Mi"
       limits:
         cpu: "500m"
-        memory: "600Mi"
-  customers-service:
+        memory: "768Mi"
+    livenessProbe:
+      httpGet:
+        path: /actuator/health/liveness
+        port: 8080
+      initialDelaySeconds: 45
+      periodSeconds: 10
+    readinessProbe:
+      httpGet:
+        path: /actuator/health/readiness
+        port: 8080
+      initialDelaySeconds: 30
+      periodSeconds: 10
+
+  customersService:
+    name: customers-service
+    image:
+      repository: "carelink/customers-service"
+      tag: "latest"
+    replicaCount: 2
     port: 8081
     resources:
       requests:
@@ -27,17 +55,26 @@ services:
         memory: "384Mi"
       limits:
         cpu: "500m"
-        memory: "600Mi"
-  vets-service:
-    port: 8082
-    resources:
-      requests:
-        cpu: "150m"
-        memory: "384Mi"
-      limits:
-        cpu: "500m"
-        memory: "600Mi"
-  visits-service:
+        memory: "768Mi"
+    livenessProbe:
+      httpGet:
+        path: /actuator/health/liveness
+        port: 8081
+      initialDelaySeconds: 45
+      periodSeconds: 10
+    readinessProbe:
+      httpGet:
+        path: /actuator/health/readiness
+        port: 8081
+      initialDelaySeconds: 30
+      periodSeconds: 10
+
+  vetsService:
+    name: vets-service
+    image:
+      repository: "carelink/vets-service"
+      tag: "latest"
+    replicaCount: 2
     port: 8083
     resources:
       requests:
@@ -45,4 +82,43 @@ services:
         memory: "384Mi"
       limits:
         cpu: "500m"
-        memory: "600Mi"
+        memory: "768Mi"
+    livenessProbe:
+      httpGet:
+        path: /actuator/health/liveness
+        port: 8083
+      initialDelaySeconds: 45
+      periodSeconds: 10
+    readinessProbe:
+      httpGet:
+        path: /actuator/health/readiness
+        port: 8083
+      initialDelaySeconds: 30
+      periodSeconds: 10
+
+  visitsService:
+    name: visits-service
+    image:
+      repository: "carelink/visits-service"
+      tag: "latest"
+    replicaCount: 2
+    port: 8082
+    resources:
+      requests:
+        cpu: "150m"
+        memory: "384Mi"
+      limits:
+        cpu: "500m"
+        memory: "768Mi"
+    livenessProbe:
+      httpGet:
+        path: /actuator/health/liveness
+        port: 8082
+      initialDelaySeconds: 45
+      periodSeconds: 10
+    readinessProbe:
+      httpGet:
+        path: /actuator/health/readiness
+        port: 8082
+      initialDelaySeconds: 30
+      periodSeconds: 10

@@ -1,28 +1,28 @@
-{{- if .Values.ingress.enabled }}
+{{- if .Values.ingress.enabled -}}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: carelink-ingress
+  name: {{ .Release.Name }}-alb-ingress
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: carelink
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
   annotations:
-    kubernetes.io/ingress.class: alb
-    alb.ingress.kubernetes.io/scheme: internet-facing
-    alb.ingress.kubernetes.io/target-type: ip
-    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}{{- if .Values.ingress.certificateArn }}, {"HTTPS": 443}{{- end }}]'
-    {{- if .Values.ingress.certificateArn }}
-    alb.ingress.kubernetes.io/certificate-arn: {{ .Values.ingress.certificateArn | quote }}
-    alb.ingress.kubernetes.io/ssl-redirect: '443'
+    kubernetes.io/ingress.class: {{ .Values.ingress.className | default "alb" | quote }}
+    {{- range $key, $value := .Values.ingress.annotations }}
+    {{ $key }}: {{ $value | quote }}
     {{- end }}
-    alb.ingress.kubernetes.io/healthcheck-path: /actuator/health
 spec:
+  ingressClassName: {{ .Values.ingress.className | default "alb" }}
   rules:
-    - host: {{ .Values.ingress.host | quote }}
-      http:
+    - http:
         paths:
-          - path: /
-            pathType: Prefix
+          - path: {{ .Values.ingress.path | default "/" }}
+            pathType: {{ .Values.ingress.pathType | default "Prefix" }}
             backend:
               service:
-                name: api-gateway
+                name: {{ .Values.ingress.service.name | default "api-gateway" }}
                 port:
-                  number: 8080
+                  number: {{ .Values.ingress.service.port | default 8080 }}
 {{- end }}
