@@ -77,5 +77,5 @@ jobs:
           SERVICES=("api-gateway" "customers-service" "vets-service" "visits-service")
           for SERVICE in "${SERVICES[@]}"; do
             echo "Checking deployment rollout for ${SERVICE}..."
-            kubectl rollout status deployment/${SERVICE} -n staging --timeout=180s
+            kubectl rollout status deployment/${SERVICE} -n staging --timeout=300s
           done
