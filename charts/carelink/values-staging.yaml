@@ -23,11 +23,11 @@ ingress:
     alb.ingress.kubernetes.io/success-codes: "200"
 
 services:
-  apiGateway:
+  api-gateway:
     replicaCount: 2
-  customersService:
+  customers-service:
     replicaCount: 2
-  vetsService:
+  vets-service:
     replicaCount: 2
-  visitsService:
+  visits-service:
     replicaCount: 2
