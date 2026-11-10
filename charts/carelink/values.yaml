@@ -15,7 +15,7 @@ ingress:
   annotations: {}
 
 services:
-  apiGateway:
+  api-gateway:
     name: api-gateway
     image:
       repository: "carelink/api-gateway"
@@ -42,7 +42,7 @@ services:
       initialDelaySeconds: 30
       periodSeconds: 10
 
-  customersService:
+  customers-service:
     name: customers-service
     image:
       repository: "carelink/customers-service"
@@ -69,7 +69,7 @@ services:
       initialDelaySeconds: 30
       periodSeconds: 10
 
-  vetsService:
+  vets-service:
     name: vets-service
     image:
       repository: "carelink/vets-service"
@@ -96,7 +96,7 @@ services:
       initialDelaySeconds: 30
       periodSeconds: 10
 
-  visitsService:
+  visits-service:
     name: visits-service
     image:
       repository: "carelink/visits-service"
