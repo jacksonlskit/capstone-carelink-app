@@ -67,7 +67,8 @@ jobs:
           cd k8s/overlays/staging
           SERVICES=("api-gateway" "customers-service" "vets-service" "visits-service")
           for SERVICE in "${SERVICES[@]}"; do
-            kustomize edit set image ${REGISTRY}/carelink-staging-${SERVICE}=${REGISTRY}/carelink-staging-${SERVICE}:${IMAGE_TAG}
+            echo "Updating image for ${SERVICE}..."
+            kustomize edit set image ${SERVICE}=${REGISTRY}/carelink-staging-${SERVICE}:${IMAGE_TAG}
           done
           kubectl apply -k .
 

@@ -7,15 +7,15 @@ resources:
   - ../../base
 
 images:
-  - name: carelink-api-gateway
+  - name: api-gateway
     newName: 255945442255.dkr.ecr.us-east-1.amazonaws.com/carelink-staging-api-gateway
     newTag: latest
-  - name: carelink-customers-service
+  - name: customers-service
     newName: 255945442255.dkr.ecr.us-east-1.amazonaws.com/carelink-staging-customers-service
     newTag: latest
-  - name: carelink-vets-service
+  - name: vets-service
     newName: 255945442255.dkr.ecr.us-east-1.amazonaws.com/carelink-staging-vets-service
     newTag: latest
-  - name: carelink-visits-service
+  - name: visits-service
     newName: 255945442255.dkr.ecr.us-east-1.amazonaws.com/carelink-staging-visits-service
     newTag: latest
