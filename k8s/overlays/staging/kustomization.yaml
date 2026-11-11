@@ -5,6 +5,7 @@ namespace: staging
 
 resources:
   - ../../base
+  - ingress.yaml
 
 images:
   - name: carelink-api-gateway
