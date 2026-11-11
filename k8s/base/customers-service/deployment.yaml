@@ -31,9 +31,9 @@ spec:
             - name: SERVER_PORT
               value: "8081"
             - name: MANAGEMENT_ENDPOINT_RESTART_ENABLED
-              value: "true"
+              value: "false"
             - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
-              value: "*"
+              value: "health,info"
             - name: SPRING_CLOUD_KUBERNETES_RELOAD_ENABLED
               value: "false"
             - name: MANAGEMENT_METRICS_EXPORT_WAVEFRONT_ENABLED
