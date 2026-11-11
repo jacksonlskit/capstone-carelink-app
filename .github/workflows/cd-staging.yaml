@@ -43,12 +43,10 @@ jobs:
             echo "Building ${SERVICE}..."
             docker build \
               -t ${REGISTRY}/${REPO_NAME}:${IMAGE_TAG} \
-              -t ${REGISTRY}/${REPO_NAME}:latest \
               -f services/${SERVICE}/Dockerfile .
             
             echo "Pushing ${SERVICE} to ${REPO_NAME}..."
             docker push ${REGISTRY}/${REPO_NAME}:${IMAGE_TAG}
-            docker push ${REGISTRY}/${REPO_NAME}:latest
           done
 
       - name: Update Kubeconfig
