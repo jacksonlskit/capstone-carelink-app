@@ -18,7 +18,12 @@ metadata:
     alb.ingress.kubernetes.io/healthy-threshold-count: "2"
     alb.ingress.kubernetes.io/unhealthy-threshold-count: "3"
     alb.ingress.kubernetes.io/success-codes: "200"
-    alb.ingress.kubernetes.io/tags: Project=carelink,Environment=staging
+    # Project must match the cohort cleanup tag exactly. The infra repo also sets
+    # it as the controller's defaultTags; keep both identical.
+    alb.ingress.kubernetes.io/tags: Project=capstone-project-group-03,Environment=staging
+    # external-dns (installed by the infra repo) points this hostname at
+    # whichever ALB exists today; the environment is rebuilt every day.
+    external-dns.alpha.kubernetes.io/hostname: carelink-staging.sctp-sandbox.com
 spec:
   ingressClassName: alb
   # The controller finds the ACM certificate for this host on its own,
