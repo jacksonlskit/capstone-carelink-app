@@ -27,10 +27,14 @@ data:
               filters:
                 - StripPrefix=2
 
-    spring.datasource.initialization-mode: always
-    spring.datasource.schema: classpath*:db/hsqldb/schema.sql
-    spring.datasource.data: classpath*:db/hsqldb/data.sql
+    # Database: RDS MySQL. The connection URL, user and password come from the
+    # carelink-db Secret (environment variables SPRING_DATASOURCE_*, see
+    # deployments.yaml); nothing about the database is configured here except
+    # the schema scripts.
+    # The services' db/mysql scripts only use CREATE ... IF NOT EXISTS and
+    # INSERT IGNORE, so running them on every start never changes or deletes
+    # existing rows: data written by users survives restarts and redeploys.
     spring.sql.init.mode: always
-    spring.sql.init.schema-locations: classpath*:db/hsqldb/schema.sql
-    spring.sql.init.data-locations: classpath*:db/hsqldb/data.sql
+    spring.sql.init.schema-locations: classpath*:db/mysql/schema.sql
+    spring.sql.init.data-locations: classpath*:db/mysql/data.sql
     spring.jpa.hibernate.ddl-auto: none
