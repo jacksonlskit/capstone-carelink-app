@@ -18,12 +18,21 @@ spec:
       # Spread replicas over nodes and availability zones so one node or AZ
       # failure leaves at least one pod per service running.
       topologySpreadConstraints:
+        # Nodes: a hard rule. Two pods of the same service never share a node,
+        # so losing one node can never take a whole service down (Use Case B:
+        # no single point of failure). With 5 nodes and 2 replicas (plus 1 extra
+        # pod during a rolling update) there is always a free node.
         - maxSkew: 1
           topologyKey: "kubernetes.io/hostname"
-          whenUnsatisfiable: ScheduleAnyway
+          whenUnsatisfiable: DoNotSchedule
+          # Ignore cordoned/tainted nodes (for example one being drained) when
+          # counting, so a drain does not block rescheduling its pods.
+          nodeTaintsPolicy: Honor
           labelSelector:
             matchLabels:
               app: {{ $name }}
+        # Zones: a preference only. Spreading over zones is wanted, but a pod
+        # should still start if one zone has no free capacity.
         - maxSkew: 1
           topologyKey: "topology.kubernetes.io/zone"
           whenUnsatisfiable: ScheduleAnyway
