@@ -1,0 +1,147 @@
+name: CD (Build, Push & Deploy via Argo CD)
+
+# Flow: feature branch -> PR (CI gates + review) -> merge to main -> this workflow:
+#   1. staging:    build + push images, record the deployment on env/staging,
+#                  wait until Argo CD reports staging Synced and Healthy
+#   2. production: waits for approval (GitHub environment "production"),
+#                  copies the same images to the production repositories,
+#                  records the deployment on env/production, waits for Argo CD
+# The pipeline never runs kubectl apply; Argo CD applies what Git says.
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+# One deployment at a time, in order; a newer merge waits instead of racing
+# the env branches.
+concurrency:
+  group: cd
+  cancel-in-progress: false
+
+env:
+  SERVICES: api-gateway customers-service vets-service visits-service
+  IMAGE_TAG: ${{ github.sha }}
+
+jobs:
+  staging:
+    name: Build and deploy to staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: staging
+    permissions:
+      id-token: write
+      contents: write # push the deployment record to env/staging
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure AWS credentials (staging role via OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push images
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+        run: |
+          for s in $SERVICES; do
+            repo="carelink-staging-$s"
+            # Tags are immutable in ECR; skip images already pushed by an earlier attempt of this run.
+            if aws ecr describe-images --repository-name "$repo" --image-ids imageTag="$IMAGE_TAG" >/dev/null 2>&1; then
+              echo "$repo:$IMAGE_TAG already exists, skipping build"
+              continue
+            fi
+            docker build -t "$REGISTRY/$repo:$IMAGE_TAG" -f "services/$s/Dockerfile" .
+            docker push "$REGISTRY/$repo:$IMAGE_TAG"
+          done
+
+      - name: Check the chart renders for staging
+        run: |
+          helm lint charts/carelink -f charts/carelink/values-staging.yaml --set global.imageTag="$IMAGE_TAG"
+          helm template carelink charts/carelink -n staging \
+            -f charts/carelink/values.yaml -f charts/carelink/values-staging.yaml \
+            --set global.imageTag="$IMAGE_TAG" > /dev/null
+
+      - name: Record the deployment on env/staging
+        id: promote
+        run: echo "revision=$(scripts/promote.sh staging "$IMAGE_TAG" | tail -n1)" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for Argo CD to roll out staging
+        run: |
+          aws eks update-kubeconfig --region "${{ vars.AWS_REGION }}" --name carelink-staging-eks
+          scripts/wait-for-argocd.sh carelink-staging "${{ steps.promote.outputs.revision }}"
+
+  production:
+    name: Promote to production
+    needs: staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: production # pauses here until a required reviewer approves
+    permissions:
+      id-token: write
+      contents: write # push the deployment record to env/production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure AWS credentials (production role via OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Copy the images tested in staging to the production repositories
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+        run: |
+          # Promote the exact images that passed staging; nothing is rebuilt.
+          for s in $SERVICES; do
+            src="$REGISTRY/carelink-staging-$s:$IMAGE_TAG"
+            dst="$REGISTRY/carelink-production-$s:$IMAGE_TAG"
+            if aws ecr describe-images --repository-name "carelink-production-$s" --image-ids imageTag="$IMAGE_TAG" >/dev/null 2>&1; then
+              echo "$dst already exists, skipping"
+              continue
+            fi
+            docker pull "$src"
+            docker tag "$src" "$dst"
+            docker push "$dst"
+          done
+
+      - name: Check the chart renders for production
+        run: |
+          helm template carelink charts/carelink -n production \
+            -f charts/carelink/values.yaml -f charts/carelink/values-production.yaml \
+            --set global.imageTag="$IMAGE_TAG" > /dev/null
+
+      - name: Record the deployment on env/production
+        id: promote
+        run: echo "revision=$(scripts/promote.sh production "$IMAGE_TAG" | tail -n1)" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for Argo CD to roll out production
+        run: |
+          aws eks update-kubeconfig --region "${{ vars.AWS_REGION }}" --name carelink-production-eks
+          scripts/wait-for-argocd.sh carelink-production "${{ steps.promote.outputs.revision }}"

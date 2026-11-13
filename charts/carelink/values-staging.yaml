@@ -1,33 +1,29 @@
+# Staging overrides (Argo CD Application carelink-staging, namespace staging).
 global:
   environment: staging
+  imagePrefix: carelink-staging
+  # Set by the app pipeline on branch env/staging; empty on main on purpose.
+  imageTag: ""
 
 ingress:
   enabled: true
-  className: "alb"
-  path: "/"
-  pathType: "Prefix"
-  service:
-    name: "api-gateway"
-    port: 8080
+  tlsHosts:
+    - carelink-staging.sctp-sandbox.com
   annotations:
-    alb.ingress.kubernetes.io/scheme: "internet-facing"
-    alb.ingress.kubernetes.io/target-type: "ip"
-    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
-    alb.ingress.kubernetes.io/healthcheck-protocol: "HTTP"
-    alb.ingress.kubernetes.io/healthcheck-port: "traffic-port"
-    alb.ingress.kubernetes.io/healthcheck-path: "/actuator/health"
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    alb.ingress.kubernetes.io/ssl-policy: ELBSecurityPolicy-TLS13-1-2-2021-06
+    alb.ingress.kubernetes.io/healthcheck-protocol: HTTP
+    alb.ingress.kubernetes.io/healthcheck-port: traffic-port
+    alb.ingress.kubernetes.io/healthcheck-path: /actuator/health
     alb.ingress.kubernetes.io/healthcheck-interval-seconds: "15"
     alb.ingress.kubernetes.io/healthcheck-timeout-seconds: "5"
     alb.ingress.kubernetes.io/healthy-threshold-count: "2"
     alb.ingress.kubernetes.io/unhealthy-threshold-count: "3"
     alb.ingress.kubernetes.io/success-codes: "200"
-
-services:
-  api-gateway:
-    replicaCount: 2
-  customers-service:
-    replicaCount: 2
-  vets-service:
-    replicaCount: 2
-  visits-service:
-    replicaCount: 2
+    # Project must match the cohort cleanup tag exactly (also the controller's defaultTags).
+    alb.ingress.kubernetes.io/tags: Project=capstone-project-group-03,Environment=staging
+    # external-dns (infra repo) points this hostname at the current ALB.
+    external-dns.alpha.kubernetes.io/hostname: carelink-staging.sctp-sandbox.com

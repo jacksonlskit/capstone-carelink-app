@@ -2,27 +2,35 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ .Release.Name }}-alb-ingress
-  namespace: {{ .Release.Namespace }}
+  # Fixed name: the AWS Load Balancer Controller names and tags the ALB after
+  # <namespace>/<name>, so renaming this would create a new ALB.
+  name: {{ .Values.ingress.name }}
   labels:
     app.kubernetes.io/name: carelink
-    app.kubernetes.io/instance: {{ .Release.Name }}
-    app.kubernetes.io/managed-by: {{ .Release.Service }}
+  {{- with .Values.ingress.annotations }}
   annotations:
-    kubernetes.io/ingress.class: {{ .Values.ingress.className | default "alb" | quote }}
-    {{- range $key, $value := .Values.ingress.annotations }}
+    {{- range $key, $value := . }}
     {{ $key }}: {{ $value | quote }}
     {{- end }}
+  {{- end }}
 spec:
-  ingressClassName: {{ .Values.ingress.className | default "alb" }}
+  # Only spec.ingressClassName: the API server rejects an Ingress that also
+  # sets the old kubernetes.io/ingress.class annotation.
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- with .Values.ingress.tlsHosts }}
+  # The controller attaches the ACM certificate matching these hostnames.
+  tls:
+    - hosts:
+        {{- toYaml . | nindent 8 }}
+  {{- end }}
   rules:
     - http:
         paths:
-          - path: {{ .Values.ingress.path | default "/" }}
-            pathType: {{ .Values.ingress.pathType | default "Prefix" }}
+          - path: {{ .Values.ingress.path }}
+            pathType: {{ .Values.ingress.pathType }}
             backend:
               service:
-                name: {{ .Values.ingress.service.name | default "api-gateway" }}
+                name: {{ .Values.ingress.service.name }}
                 port:
-                  number: {{ .Values.ingress.service.port | default 8080 }}
+                  number: {{ .Values.ingress.service.port }}
 {{- end }}
