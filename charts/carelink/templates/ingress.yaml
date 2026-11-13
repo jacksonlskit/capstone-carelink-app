@@ -1,0 +1,36 @@
+{{- if .Values.ingress.enabled -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  # Fixed name: the AWS Load Balancer Controller names and tags the ALB after
+  # <namespace>/<name>, so renaming this would create a new ALB.
+  name: {{ .Values.ingress.name }}
+  labels:
+    app.kubernetes.io/name: carelink
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- range $key, $value := . }}
+    {{ $key }}: {{ $value | quote }}
+    {{- end }}
+  {{- end }}
+spec:
+  # Only spec.ingressClassName: the API server rejects an Ingress that also
+  # sets the old kubernetes.io/ingress.class annotation.
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- with .Values.ingress.tlsHosts }}
+  # The controller attaches the ACM certificate matching these hostnames.
+  tls:
+    - hosts:
+        {{- toYaml . | nindent 8 }}
+  {{- end }}
+  rules:
+    - http:
+        paths:
+          - path: {{ .Values.ingress.path }}
+            pathType: {{ .Values.ingress.pathType }}
+            backend:
+              service:
+                name: {{ .Values.ingress.service.name }}
+                port:
+                  number: {{ .Values.ingress.service.port }}
+{{- end }}

@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: petclinic-config
+data:
+  application.yml: |
+    spring:
+      cloud:
+        gateway:
+          routes:
+            - id: vets-service
+              uri: http://vets-service:8082
+              predicates:
+                - Path=/api/vet/**
+              filters:
+                - StripPrefix=2
+            - id: customers-service
+              uri: http://customers-service:8081
+              predicates:
+                - Path=/api/customer/**
+              filters:
+                - StripPrefix=2
+            - id: visits-service
+              uri: http://visits-service:8083
+              predicates:
+                - Path=/api/visit/**
+              filters:
+                - StripPrefix=2
+
+    spring.datasource.initialization-mode: always
+    spring.datasource.schema: classpath*:db/hsqldb/schema.sql
+    spring.datasource.data: classpath*:db/hsqldb/data.sql
+    spring.sql.init.mode: always
+    spring.sql.init.schema-locations: classpath*:db/hsqldb/schema.sql
+    spring.sql.init.data-locations: classpath*:db/hsqldb/data.sql
+    spring.jpa.hibernate.ddl-auto: none
