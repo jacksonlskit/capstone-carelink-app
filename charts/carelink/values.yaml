@@ -1,26 +1,37 @@
+# Base values for every environment. Environment differences live in
+# values-<environment>.yaml. Argo CD renders: values.yaml + values-<env>.yaml.
+
 global:
   environment: base
   imageRegistry: "255945442255.dkr.ecr.us-east-1.amazonaws.com"
-  imagePullPolicy: IfNotPresent
+  # ECR repository prefix; images are <imageRegistry>/<imagePrefix>-<service>:<imageTag>.
+  # Set per environment (carelink-staging / carelink-production).
+  imagePrefix: ""
+  # Git SHA of the build. Left empty on main on purpose: the app pipeline
+  # writes it into values-<env>.yaml on the env/<env> branch when it deploys.
+  # Rendering fails if it is empty, so an untagged image can never be deployed.
+  imageTag: ""
+  # At least 2 pods per service, spread over nodes, so losing one pod or node
+  # does not take a service down (Use Case B: no single point of failure).
+  replicaCount: 2
 
-# Default Ingress is disabled in base; activated via environment values files
 ingress:
   enabled: false
-  className: "alb"
-  path: "/"
-  pathType: "Prefix"
+  name: carelink-alb-ingress
+  className: alb
+  path: /
+  pathType: Prefix
   service:
-    name: "api-gateway"
+    name: api-gateway
     port: 8080
+  # Hostnames for TLS; the AWS Load Balancer Controller finds the ACM
+  # certificate by hostname (certificates live in the infra repo's bootstrap).
+  tlsHosts: []
   annotations: {}
 
+# Ports must match the gateway routes in templates/configmap.yaml.
 services:
   api-gateway:
-    name: api-gateway
-    image:
-      repository: "carelink/api-gateway"
-      tag: "latest"
-    replicaCount: 2
     port: 8080
     resources:
       requests:
@@ -29,25 +40,8 @@ services:
       limits:
         cpu: "500m"
         memory: "768Mi"
-    livenessProbe:
-      httpGet:
-        path: /actuator/health/liveness
-        port: 8080
-      initialDelaySeconds: 45
-      periodSeconds: 10
-    readinessProbe:
-      httpGet:
-        path: /actuator/health/readiness
-        port: 8080
-      initialDelaySeconds: 30
-      periodSeconds: 10
 
   customers-service:
-    name: customers-service
-    image:
-      repository: "carelink/customers-service"
-      tag: "latest"
-    replicaCount: 2
     port: 8081
     resources:
       requests:
@@ -56,52 +50,8 @@ services:
       limits:
         cpu: "500m"
         memory: "768Mi"
-    livenessProbe:
-      httpGet:
-        path: /actuator/health/liveness
-        port: 8081
-      initialDelaySeconds: 45
-      periodSeconds: 10
-    readinessProbe:
-      httpGet:
-        path: /actuator/health/readiness
-        port: 8081
-      initialDelaySeconds: 30
-      periodSeconds: 10
 
   vets-service:
-    name: vets-service
-    image:
-      repository: "carelink/vets-service"
-      tag: "latest"
-    replicaCount: 2
-    port: 8083
-    resources:
-      requests:
-        cpu: "150m"
-        memory: "384Mi"
-      limits:
-        cpu: "500m"
-        memory: "768Mi"
-    livenessProbe:
-      httpGet:
-        path: /actuator/health/liveness
-        port: 8083
-      initialDelaySeconds: 45
-      periodSeconds: 10
-    readinessProbe:
-      httpGet:
-        path: /actuator/health/readiness
-        port: 8083
-      initialDelaySeconds: 30
-      periodSeconds: 10
-
-  visits-service:
-    name: visits-service
-    image:
-      repository: "carelink/visits-service"
-      tag: "latest"
-    replicaCount: 2
     port: 8082
     resources:
       requests:
@@ -110,15 +60,13 @@ services:
       limits:
         cpu: "500m"
         memory: "768Mi"
-    livenessProbe:
-      httpGet:
-        path: /actuator/health/liveness
-        port: 8082
-      initialDelaySeconds: 45
-      periodSeconds: 10
-    readinessProbe:
-      httpGet:
-        path: /actuator/health/readiness
-        port: 8082
-      initialDelaySeconds: 30
-      periodSeconds: 10
+
+  visits-service:
+    port: 8083
+    resources:
+      requests:
+        cpu: "150m"
+        memory: "384Mi"
+      limits:
+        cpu: "500m"
+        memory: "768Mi"

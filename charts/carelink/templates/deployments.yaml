@@ -15,6 +15,8 @@ spec:
       labels:
         app: {{ $name }}
     spec:
+      # Spread replicas over nodes and availability zones so one node or AZ
+      # failure leaves at least one pod per service running.
       topologySpreadConstraints:
         - maxSkew: 1
           topologyKey: "kubernetes.io/hostname"
@@ -22,9 +24,15 @@ spec:
           labelSelector:
             matchLabels:
               app: {{ $name }}
+        - maxSkew: 1
+          topologyKey: "topology.kubernetes.io/zone"
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: {{ $name }}
       containers:
         - name: {{ $name }}
-          image: "{{ $.Values.global.imageRegistry }}/{{ $.Values.global.imagePrefix }}-{{ $name }}:{{ $.Values.global.imageTag }}"
+          image: "{{ $.Values.global.imageRegistry }}/{{ required "global.imagePrefix is required (set it in values-<env>.yaml)" $.Values.global.imagePrefix }}-{{ $name }}:{{ required "global.imageTag is required (the app pipeline sets it on env/<env>)" $.Values.global.imageTag }}"
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: {{ $svc.port }}

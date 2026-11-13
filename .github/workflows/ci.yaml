@@ -96,20 +96,41 @@ jobs:
             carelink/${{ matrix.service }}:${{ github.sha }}
 
   # ============================================================================
-  # 3. Aggregated Status Check for Branch Protection Rulesets
+  # 3. Helm Chart Check (what Argo CD will deploy)
+  # ============================================================================
+  helm-chart:
+    name: Helm Chart Lint & Render
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Lint and render for every environment
+        run: |
+          for env in staging production; do
+            echo "== $env"
+            helm lint charts/carelink -f charts/carelink/values-$env.yaml --set global.imageTag=ci-check
+            helm template carelink charts/carelink -n "$env" \
+              -f charts/carelink/values.yaml -f charts/carelink/values-$env.yaml \
+              --set global.imageTag=ci-check > /dev/null
+          done
+
+  # ============================================================================
+  # 4. Aggregated Status Check for Branch Protection Rulesets
   # ============================================================================
   build:
     name: build
     needs:
       - build-and-sca
       - container-security
+      - helm-chart
     runs-on: ubuntu-latest
     if: always()
     steps:
       - name: Check Status of Required CI Gates
         run: |
-          if [ "${{ needs.build-and-sca.result }}" != "success" ] || [ "${{ needs.container-security.result }}" != "success" ]; then
-            echo "CI security gates or build tests failed."
+          if [ "${{ needs.build-and-sca.result }}" != "success" ] || [ "${{ needs.container-security.result }}" != "success" ] || [ "${{ needs.helm-chart.result }}" != "success" ]; then
+            echo "CI security gates, build tests or the Helm chart check failed."
             exit 1
           fi
-          echo "All Maven unit tests, Trivy SCA, and container scans passed successfully."
+          echo "All Maven unit tests, Trivy SCA, container scans and the Helm chart check passed successfully."
