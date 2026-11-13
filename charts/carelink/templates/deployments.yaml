@@ -5,6 +5,12 @@ metadata:
   name: {{ $name }}
   labels:
     app: {{ $name }}
+  {{- if $svc.database }}
+  annotations:
+    # Reloader (installed by the infra repo) restarts the pods one at a time
+    # when the database secret changes, e.g. after RDS rotates the password.
+    secret.reloader.stakater.com/reload: {{ $.Values.database.secretName | quote }}
+  {{- end }}
 spec:
   replicas: {{ $svc.replicaCount | default $.Values.global.replicaCount }}
   selector:
@@ -58,6 +64,18 @@ spec:
               value: "false"
             - name: JAVA_TOOL_OPTIONS
               value: "-XX:+UseContainerSupport -XX:MaxRAMPercentage=70.0 -XX:+UseSerialGC -XX:ActiveProcessorCount=2"
+            {{- if $svc.database }}
+            # RDS MySQL connection from the Secret External Secrets keeps in sync
+            # with the RDS-managed secret in Secrets Manager (infra repo,
+            # app-database.tf). No credential is stored in this repo.
+            {{- range $envName, $key := dict "SPRING_DATASOURCE_URL" "url" "SPRING_DATASOURCE_USERNAME" "username" "SPRING_DATASOURCE_PASSWORD" "password" }}
+            - name: {{ $envName }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.database.secretName }}
+                  key: {{ $key }}
+            {{- end }}
+            {{- end }}
           resources:
             {{- toYaml $svc.resources | nindent 12 }}
           startupProbe:

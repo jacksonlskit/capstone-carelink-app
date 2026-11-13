@@ -29,6 +29,12 @@ ingress:
   tlsHosts: []
   annotations: {}
 
+# Database: RDS MySQL per environment. The Secret below (url, username,
+# password) is created by External Secrets from the RDS-managed secret in
+# Secrets Manager (infra repo, app-database.tf); this chart never sees a password.
+database:
+  secretName: carelink-db
+
 # Ports must match the gateway routes in templates/configmap.yaml.
 services:
   api-gateway:
@@ -43,6 +49,7 @@ services:
 
   customers-service:
     port: 8081
+    database: true
     resources:
       requests:
         cpu: "150m"
@@ -53,6 +60,7 @@ services:
 
   vets-service:
     port: 8082
+    database: true
     resources:
       requests:
         cpu: "150m"
@@ -63,6 +71,7 @@ services:
 
   visits-service:
     port: 8083
+    database: true
     resources:
       requests:
         cpu: "150m"

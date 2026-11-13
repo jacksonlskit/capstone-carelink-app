@@ -4,7 +4,7 @@ global:
   environment: production
   imagePrefix: carelink-production
   # Set by the app pipeline on branch env/production; empty on main on purpose.
-  imageTag: "56eb9a04c3a1363be383cfb260536a697e2da244"
+  imageTag: "036f796f46c12541a7cda5526f0b31275facb8e8"
 
 ingress:
   enabled: true
