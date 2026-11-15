@@ -22,6 +22,9 @@
 		<assertj.version>3.11.1</assertj.version>
 
 		<spring-boot.version>2.6.3</spring-boot.version>
+		<!-- Spring Boot 2.6.3 brings Tomcat 9.0.56. Use the newest 9.0 patch release
+		     (fixes CVE-2026-55276, -53404, -55957 and -65637; same 9.0 line). -->
+		<tomcat.version>9.0.124</tomcat.version>
 		<spring-cloud.version>2021.0.0</spring-cloud.version>
         <spring-cloud-services.version>3.3.0</spring-cloud-services.version>
         <wavefront.version>2.2.2</wavefront.version>
