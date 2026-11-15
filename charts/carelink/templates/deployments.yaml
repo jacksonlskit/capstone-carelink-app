@@ -1,0 +1,101 @@
+{{- range $name, $svc := .Values.services }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  labels:
+    app: {{ $name }}
+  {{- if $svc.database }}
+  annotations:
+    # Reloader (installed by the infra repo) restarts the pods one at a time
+    # when the database secret changes, e.g. after RDS rotates the password.
+    secret.reloader.stakater.com/reload: {{ $.Values.database.secretName | quote }}
+  {{- end }}
+spec:
+  replicas: {{ $svc.replicaCount | default $.Values.global.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ $name }}
+  template:
+    metadata:
+      labels:
+        app: {{ $name }}
+    spec:
+      # Spread replicas over nodes and availability zones so one node or AZ
+      # failure leaves at least one pod per service running.
+      topologySpreadConstraints:
+        # Nodes: a hard rule. Two pods of the same service never share a node,
+        # so losing one node can never take a whole service down (Use Case B:
+        # no single point of failure). With 5 nodes and 2 replicas (plus 1 extra
+        # pod during a rolling update) there is always a free node.
+        - maxSkew: 1
+          topologyKey: "kubernetes.io/hostname"
+          whenUnsatisfiable: DoNotSchedule
+          # Ignore cordoned/tainted nodes (for example one being drained) when
+          # counting, so a drain does not block rescheduling its pods.
+          nodeTaintsPolicy: Honor
+          labelSelector:
+            matchLabels:
+              app: {{ $name }}
+        # Zones: a preference only. Spreading over zones is wanted, but a pod
+        # should still start if one zone has no free capacity.
+        - maxSkew: 1
+          topologyKey: "topology.kubernetes.io/zone"
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: {{ $name }}
+      containers:
+        - name: {{ $name }}
+          image: "{{ $.Values.global.imageRegistry }}/{{ required "global.imagePrefix is required (set it in values-<env>.yaml)" $.Values.global.imagePrefix }}-{{ $name }}:{{ required "global.imageTag is required (the app pipeline sets it on env/<env>)" $.Values.global.imageTag }}"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: {{ $svc.port }}
+          env:
+            - name: SERVER_PORT
+              value: "{{ $svc.port }}"
+            - name: MANAGEMENT_ENDPOINT_RESTART_ENABLED
+              value: "false"
+            - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
+              value: "health,info"
+            - name: SPRING_CLOUD_KUBERNETES_RELOAD_ENABLED
+              value: "false"
+            - name: MANAGEMENT_METRICS_EXPORT_WAVEFRONT_ENABLED
+              value: "false"
+            - name: JAVA_TOOL_OPTIONS
+              value: "-XX:+UseContainerSupport -XX:MaxRAMPercentage=70.0 -XX:+UseSerialGC -XX:ActiveProcessorCount=2"
+            {{- if $svc.database }}
+            # RDS MySQL connection from the Secret External Secrets keeps in sync
+            # with the RDS-managed secret in Secrets Manager (infra repo,
+            # app-database.tf). No credential is stored in this repo.
+            {{- range $envName, $key := dict "SPRING_DATASOURCE_URL" "url" "SPRING_DATASOURCE_USERNAME" "username" "SPRING_DATASOURCE_PASSWORD" "password" }}
+            - name: {{ $envName }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.database.secretName }}
+                  key: {{ $key }}
+            {{- end }}
+            {{- end }}
+          resources:
+            {{- toYaml $svc.resources | nindent 12 }}
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: {{ $svc.port }}
+            initialDelaySeconds: 25
+            periodSeconds: 10
+            failureThreshold: 30
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: {{ $svc.port }}
+            periodSeconds: 15
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: {{ $svc.port }}
+            periodSeconds: 10
+            failureThreshold: 3
+---
+{{- end }}

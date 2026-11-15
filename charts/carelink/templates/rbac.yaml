@@ -14,6 +14,9 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: default
+    # Required: without it the binding does not match the pods' service account
+    # and Spring Cloud Kubernetes cannot read the gateway routes ConfigMap.
+    namespace: {{ .Release.Namespace }}
 roleRef:
   kind: Role
   name: configmap-reader
