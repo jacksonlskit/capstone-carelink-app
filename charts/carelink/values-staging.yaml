@@ -3,7 +3,7 @@ global:
   environment: staging
   imagePrefix: carelink-staging
   # Set by the app pipeline on branch env/staging; empty on main on purpose.
-  imageTag: "036f796f46c12541a7cda5526f0b31275facb8e8"
+  imageTag: "ed261648cac4e3086ab8a8d33f7d06e98cd3ca2d"
 
 ingress:
   enabled: true
