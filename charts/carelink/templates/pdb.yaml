@@ -1,0 +1,23 @@
+{{- /*
+PodDisruptionBudget per service: voluntary disruptions (node drain, node group
+update, cluster upgrade) must leave at least one pod of every service running.
+Only created when a service runs more than one replica; with one replica it
+would block node drains forever.
+*/ -}}
+{{- range $name, $svc := .Values.services }}
+{{- $replicas := int ($svc.replicaCount | default $.Values.global.replicaCount) }}
+{{- if gt $replicas 1 }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $name }}
+  labels:
+    app: {{ $name }}
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: {{ $name }}
+---
+{{- end }}
+{{- end }}
