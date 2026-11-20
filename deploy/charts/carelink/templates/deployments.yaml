@@ -1,0 +1,90 @@
+{{- range $name, $svc := .Values.services }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    app: {{ $name }}
+  {{- if $svc.database }}
+  annotations:
+    secret.reloader.stakater.com/reload: {{ $.Values.database.secretName | quote }}
+  {{- end }}
+spec:
+  replicas: {{ $svc.replicaCount | default $.Values.global.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ $name }}
+  template:
+    metadata:
+      labels:
+        app: {{ $name }}
+        app.kubernetes.io/part-of: carelink
+    spec:
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          nodeTaintsPolicy: Honor
+          labelSelector:
+            matchLabels:
+              app: {{ $name }}
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: {{ $name }}
+      containers:
+        - name: {{ $name }}
+          image: "{{ $.Values.global.imageRegistry }}/{{ required "global.imagePrefix is required" $.Values.global.imagePrefix }}-{{ $name }}:{{ required "global.imageTag is required" $.Values.global.imageTag }}"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: {{ $svc.port }}
+              protocol: TCP
+          env:
+            - name: SERVER_PORT
+              value: {{ $svc.port | quote }}
+            - name: MANAGEMENT_ENDPOINT_RESTART_ENABLED
+              value: "false"
+            - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
+              value: "health,info,prometheus"
+            - name: SPRING_CLOUD_KUBERNETES_RELOAD_ENABLED
+              value: "false"
+            - name: MANAGEMENT_METRICS_EXPORT_WAVEFRONT_ENABLED
+              value: "false"
+            - name: JAVA_TOOL_OPTIONS
+              value: "-XX:+UseContainerSupport -XX:MaxRAMPercentage=70.0 -XX:+UseSerialGC -XX:ActiveProcessorCount=2"
+            {{- if $svc.database }}
+            {{- range $envName, $key := dict "SPRING_DATASOURCE_URL" "url" "SPRING_DATASOURCE_USERNAME" "username" "SPRING_DATASOURCE_PASSWORD" "password" }}
+            - name: {{ $envName }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.database.secretName }}
+                  key: {{ $key }}
+            {{- end }}
+            {{- end }}
+          resources:
+            {{- toYaml $svc.resources | nindent 12 }}
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            initialDelaySeconds: 25
+            periodSeconds: 10
+            failureThreshold: 30
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: 15
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            periodSeconds: 10
+            failureThreshold: 3
+{{- end }}

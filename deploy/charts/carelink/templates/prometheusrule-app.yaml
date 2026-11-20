@@ -1,0 +1,42 @@
+
+{{- if .Values.monitoring.prometheusRule.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: carelink-service-alerts
+  namespace: {{ .Release.Namespace }}
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: carelink.public-health
+      rules:
+        - alert: CareLinkPublicHealthCheckFailed
+          expr: |
+            probe_success{
+              job="carelink-{{ .Values.global.environment }}-health",
+              environment="{{ .Values.global.environment }}"
+            } == 0
+          for: 2m
+          labels:
+            severity: critical
+            team: carelink
+          annotations:
+            summary: "CareLink {{ .Values.global.environment }} public health check failed"
+            description: "The public CareLink {{ .Values.global.environment }} health endpoint has been failing for more than 2 minutes."
+    - name: carelink.service.availability
+      rules:
+        - alert: CareLinkServiceDown
+          expr: |
+            up{
+              namespace="{{ .Release.Namespace }}",
+              service=~"api-gateway|customers-service|vets-service|visits-service"
+            } == 0
+          for: 2m
+          labels:
+            severity: critical
+            team: carelink
+          annotations:
+            summary: "CareLink service endpoint is unavailable"
+            description: "A CareLink service endpoint in namespace {{ .Release.Namespace }} has been unavailable for more than 2 minutes."
+{{- end }}

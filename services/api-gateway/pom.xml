@@ -41,6 +41,12 @@
 	<dependencies>
 
 		<!-- Spring Boot -->
+                <!-- JSON structured logging -->
+                <dependency>
+                    <groupId>net.logstash.logback</groupId>
+                    <artifactId>logstash-logback-encoder</artifactId>
+                    <version>7.3</version>
+                </dependency>
 		<dependency>
 			<groupId>com.wavefront</groupId>
 			<artifactId>wavefront-spring-boot-starter</artifactId>

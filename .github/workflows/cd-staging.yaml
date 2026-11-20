@@ -1,4 +1,5 @@
-name: CD Staging (Build, Push & Deploy)
+
+name: CD Staging - Build, Push & GitOps Update
 
 on:
   push:
@@ -6,75 +7,110 @@ on:
       - main
 
 permissions:
-  id-token: write
   contents: read
 
 jobs:
-  build-and-deploy-staging:
-    name: Deploy to Staging EKS
+  build-and-push:
+    name: Build and Push CareLink Images
     runs-on: ubuntu-latest
     environment: staging
+    permissions:
+      id-token: write
+      contents: read
 
     steps:
-      - name: Checkout Code
+      - name: Checkout Application
         uses: actions/checkout@v4
 
       - name: Configure AWS Credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE }}
           aws-region: ${{ vars.AWS_REGION }}
 
-      - name: Log in to Amazon ECR
+      - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build and Push Microservice Images
+      - name: Build and Push Images
         env:
           REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
+          set -euo pipefail
+
           SERVICES=("api-gateway" "customers-service" "vets-service" "visits-service")
+
           for SERVICE in "${SERVICES[@]}"; do
             REPO_NAME="carelink-staging-${SERVICE}"
+
             echo "Building ${SERVICE}..."
             docker build \
-              -t ${REGISTRY}/${REPO_NAME}:${IMAGE_TAG} \
-              -t ${REGISTRY}/${REPO_NAME}:latest \
-              -f services/${SERVICE}/Dockerfile .
-            
-            echo "Pushing ${SERVICE} to ${REPO_NAME}..."
-            docker push ${REGISTRY}/${REPO_NAME}:${IMAGE_TAG}
-            docker push ${REGISTRY}/${REPO_NAME}:latest
+              -t "${REGISTRY}/${REPO_NAME}:${IMAGE_TAG}" \
+              -f "services/${SERVICE}/Dockerfile" .
+
+            echo "Pushing ${SERVICE}..."
+            docker push "${REGISTRY}/${REPO_NAME}:${IMAGE_TAG}"
           done
 
-      - name: Update Kubeconfig
-        run: |
-          aws eks update-kubeconfig --region ${{ vars.AWS_REGION }} --name carelink-staging-eks
+      - name: Upload Helm Chart
+        uses: actions/upload-artifact@v4
+        with:
+          name: carelink-helm-chart
+          path: deploy/charts/carelink/
+          if-no-files-found: error
 
-      - name: Ensure Staging Namespace Exists
-        run: |
-          kubectl get namespace staging || kubectl create namespace staging
+  update-staging-gitops:
+    name: Update Staging GitOps Branch
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
-      - name: Deploy to Staging via Kustomize
+    steps:
+      - name: Checkout Staging GitOps Branch
+        uses: actions/checkout@v4
+        with:
+          ref: env/staging
+          fetch-depth: 0
+
+      - name: Preserve Staging Values
+        run: |
+          set -euo pipefail
+          test -f deploy/charts/carelink/values-staging.yaml
+          cp deploy/charts/carelink/values-staging.yaml /tmp/values-staging.yaml
+
+      - name: Download Helm Chart
+        uses: actions/download-artifact@v4
+        with:
+          name: carelink-helm-chart
+          path: chart-artifact
+
+      - name: Publish Chart and Update Image SHA
         env:
-          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          cd k8s/overlays/staging
-          SERVICES=("api-gateway" "customers-service" "vets-service" "visits-service")
-          for SERVICE in "${SERVICES[@]}"; do
-            kustomize edit set image ${REGISTRY}/carelink-staging-${SERVICE}=${REGISTRY}/carelink-staging-${SERVICE}:${IMAGE_TAG}
-          done
-          kubectl apply -k .
+          set -euo pipefail
 
-      - name: Verify Deployment Rollouts
+          mkdir -p deploy/charts/carelink
+          cp -R chart-artifact/. deploy/charts/carelink/
+          cp /tmp/values-staging.yaml deploy/charts/carelink/values-staging.yaml
+
+          sed -i -E "s|^  imageTag:.*|  imageTag: \"${IMAGE_TAG}\"|" \
+            deploy/charts/carelink/values-staging.yaml
+
+      - name: Commit and Push Staging GitOps Changes
         run: |
-          SERVICES=("api-gateway" "customers-service" "vets-service" "visits-service")
-          for SERVICE in "${SERVICES[@]}"; do
-            echo "Checking deployment rollout for ${SERVICE}..."
-            kubectl rollout status deployment/${SERVICE} -n staging --timeout=180s
-          done
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add deploy/charts/carelink/
+
+          if git diff --cached --quiet; then
+            echo "No staging GitOps changes."
+          else
+            git commit -m "chore(gitops): update staging CareLink chart"
+            git push origin HEAD:env/staging
+          fi
