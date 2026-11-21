@@ -43,7 +43,9 @@ else
 fi
 
 # The env branch holds only the chart as it was at $SHA, plus the image tag.
-rm -rf "$WORKDIR/charts"
+# Clear everything first (except the worktree's .git link), so files that were
+# ever added to the branch by other means do not stay there for good.
+find "$WORKDIR" -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
 git archive "$SHA" charts/carelink | tar -x -C "$WORKDIR"
 perl -pi -e 's/^(\s*imageTag:).*/$1 "'"$SHA"'"/' "$WORKDIR/$VALUES"
 grep -q "imageTag: \"$SHA\"" "$WORKDIR/$VALUES" || { echo "could not set imageTag in $VALUES" >&2; exit 1; }

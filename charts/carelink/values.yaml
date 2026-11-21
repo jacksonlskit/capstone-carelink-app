@@ -35,6 +35,25 @@ ingress:
 database:
   secretName: carelink-db
 
+# Actuator (health, info, prometheus) runs on its own port in every service.
+# The Ingress and the gateway routes only send traffic to each service's main
+# port, so metrics can never be reached from the internet; Prometheus scrapes
+# this port inside the cluster. The probes and the ALB health check use /livez
+# and /readyz, which Spring Boot also serves on the main port, so they keep
+# checking the server that handles real requests.
+management:
+  port: 8090
+
+# Prometheus Operator objects (templates/servicemonitor.yaml, prometheusrule.yaml).
+# Off by default: only staging runs Prometheus. Production has no ServiceMonitor
+# or PrometheusRule CRDs, so rendering them there would make the sync fail.
+monitoring:
+  serviceMonitor:
+    enabled: false
+    interval: 30s
+  prometheusRule:
+    enabled: false
+
 # Ports must match the gateway routes in templates/configmap.yaml.
 services:
   api-gateway:
