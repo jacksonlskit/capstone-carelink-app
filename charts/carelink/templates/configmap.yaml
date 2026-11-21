@@ -26,6 +26,15 @@ data:
                 - Path=/api/visit/**
               filters:
                 - StripPrefix=2
+            # The public health status: the only actuator path the internet can
+            # reach. Actuator runs on the private management port (management in
+            # values.yaml); this route forwards exactly /actuator/health, and
+            # nothing below it, to the gateway's own management server, so the
+            # blackbox probe and anyone checking the site keep the same URL.
+            - id: public-health
+              uri: http://localhost:{{ .Values.management.port }}
+              predicates:
+                - Path=/actuator/health
 
     # Database: RDS MySQL. The connection URL, user and password come from the
     # carelink-db Secret (environment variables SPRING_DATASOURCE_*, see

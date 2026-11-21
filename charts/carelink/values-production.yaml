@@ -4,7 +4,7 @@ global:
   environment: production
   imagePrefix: carelink-production
   # Set by the app pipeline on branch env/production; empty on main on purpose.
-  imageTag: "fd0e92ced3b1adc4edd52adb3c10ed3c3a68cb2f"
+  imageTag: "f621b118a31dce19a7dbc6cd69c341196e9bb6ed"
 
 ingress:
   enabled: true
@@ -18,7 +18,9 @@ ingress:
     alb.ingress.kubernetes.io/ssl-policy: ELBSecurityPolicy-TLS13-1-2-2021-06
     alb.ingress.kubernetes.io/healthcheck-protocol: HTTP
     alb.ingress.kubernetes.io/healthcheck-port: traffic-port
-    alb.ingress.kubernetes.io/healthcheck-path: /actuator/health
+    # Readiness on the main port (actuator itself is on the management port,
+    # which the ALB cannot reach; see management in values.yaml).
+    alb.ingress.kubernetes.io/healthcheck-path: /readyz
     alb.ingress.kubernetes.io/healthcheck-interval-seconds: "15"
     alb.ingress.kubernetes.io/healthcheck-timeout-seconds: "5"
     alb.ingress.kubernetes.io/healthy-threshold-count: "2"
