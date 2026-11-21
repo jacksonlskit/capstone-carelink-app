@@ -11,6 +11,11 @@ spec:
     - port: {{ $svc.port }}
       targetPort: {{ $svc.port }}
       name: http
+    # Actuator only, for Prometheus inside the cluster. Not used by the
+    # Ingress (it targets the http port) or the gateway routes.
+    - port: {{ $.Values.management.port }}
+      targetPort: {{ $.Values.management.port }}
+      name: management
   selector:
     app: {{ $name }}
 ---

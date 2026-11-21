@@ -1,7 +1,0 @@
-/Users/jack/Capstone/capstone-carelink-app/services/visits-service/src/main/java/org/springframework/samples/petclinic/visits/model/InitializeMySQLModel.java
-/Users/jack/Capstone/capstone-carelink-app/services/visits-service/src/main/java/org/springframework/samples/petclinic/visits/security/InsecurityConfiguration.java
-/Users/jack/Capstone/capstone-carelink-app/services/visits-service/src/main/java/org/springframework/samples/petclinic/visits/model/VisitRepository.java
-/Users/jack/Capstone/capstone-carelink-app/services/visits-service/src/main/java/org/springframework/samples/petclinic/visits/web/VisitResource.java
-/Users/jack/Capstone/capstone-carelink-app/services/visits-service/src/main/java/org/springframework/samples/petclinic/visits/model/Visit.java
-/Users/jack/Capstone/capstone-carelink-app/services/visits-service/src/main/java/org/springframework/samples/petclinic/visits/DiscoveryConfig.java
-/Users/jack/Capstone/capstone-carelink-app/services/visits-service/src/main/java/org/springframework/samples/petclinic/visits/VisitsServiceApplication.java

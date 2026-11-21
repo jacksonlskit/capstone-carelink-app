@@ -1,0 +1,32 @@
+{{- /*
+Alert when Prometheus cannot scrape a service pod (the pod is down or not
+answering). Staging only, see monitoring in values.yaml. Alertmanager adds
+environment=<env> and routes it to Discord (infra repo, observability/alerting).
+The public health check alert lives in the infra repo
+(observability/alerting/rules/service-alerts.yaml), so it is not repeated here.
+*/ -}}
+{{- if .Values.monitoring.prometheusRule.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: carelink-app-alerts
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: carelink.service.availability
+      rules:
+        - alert: CareLinkServiceDown
+          expr: |
+            up{
+              namespace="{{ .Release.Namespace }}",
+              service=~"{{ keys .Values.services | sortAlpha | join "|" }}"
+            } == 0
+          for: 2m
+          labels:
+            severity: critical
+            team: carelink
+          annotations:
+            summary: "CareLink service endpoint is unavailable"
+            description: "{{ "{{" }} $labels.service {{ "}}" }} pod {{ "{{" }} $labels.pod {{ "}}" }} in namespace {{ .Release.Namespace }} has not answered Prometheus for more than 2 minutes."
+{{- end }}

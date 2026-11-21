@@ -1,6 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
-    <include resource="org/springframework/boot/logging/logback/base.xml"/>
-    <!-- Required for Loglevel managment into the Spring Petclinic Admin Server-->
+    <!-- Spring Boot's default log levels for noisy libraries (no appenders). -->
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <!-- One JSON object per line on stdout, so Loki (staging) and CloudWatch
+         can filter on fields such as level, logger_name or traceId. -->
+    <appender name="JSON_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <includeMdcKeyName>traceId</includeMdcKeyName>
+            <includeMdcKeyName>spanId</includeMdcKeyName>
+        </encoder>
+    </appender>
+
+    <root level="INFO">
+        <appender-ref ref="JSON_CONSOLE"/>
+    </root>
+
+    <!-- Required for log level management from the Spring Petclinic Admin Server -->
     <jmxConfigurator/>
 </configuration>
