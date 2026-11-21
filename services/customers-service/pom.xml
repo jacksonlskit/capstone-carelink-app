@@ -25,6 +25,14 @@
 		<!-- Spring Boot 2.6.3 brings Tomcat 9.0.56. Use the newest 9.0 patch release
 		     (fixes CVE-2026-55276, -53404, -55957 and -65637; same 9.0 line). -->
 		<tomcat.version>9.0.124</tomcat.version>
+		<!-- Security patch releases inside the lines Spring Boot 2.7 supports; what is
+		     still open (fixed only in Spring 6 / Boot 3) is listed with reasons in .trivyignore. -->
+		<spring-framework.version>5.3.39</spring-framework.version>
+		<netty.version>4.1.141.Final</netty.version>
+		<logback.version>1.2.13</logback.version>
+		<mysql.version>8.4.0</mysql.version>
+		<hsqldb.version>2.7.4</hsqldb.version>
+		<bouncycastle.version>1.87</bouncycastle.version>
 		<spring-cloud.version>2021.0.9</spring-cloud.version>
         <spring-cloud-services.version>3.3.0</spring-cloud-services.version>
         <wavefront.version>2.2.2</wavefront.version>
@@ -140,6 +148,22 @@
 
 	<dependencyManagement>
 		<dependencies>
+			<!-- BouncyCastle (via spring-security-rsa): keep the three jdk18on artifacts on one version. -->
+			<dependency>
+				<groupId>org.bouncycastle</groupId>
+				<artifactId>bcprov-jdk18on</artifactId>
+				<version>${bouncycastle.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.bouncycastle</groupId>
+				<artifactId>bcpkix-jdk18on</artifactId>
+				<version>${bouncycastle.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.bouncycastle</groupId>
+				<artifactId>bcutil-jdk18on</artifactId>
+				<version>${bouncycastle.version}</version>
+			</dependency>
 			<dependency>
 				<groupId>io.pivotal.spring.cloud</groupId>
 				<artifactId>spring-cloud-services-dependencies</artifactId>

@@ -23,8 +23,6 @@
 		<maven.compiler.target>17</maven.compiler.target>
 		<!-- Java 17 compatible Lombok -->
 		<lombok.version>1.18.30</lombok.version>
-		<!-- Remediates CVE-2022-1471 and CVE-2022-25857 -->
-		<snakeyaml.version>2.2</snakeyaml.version>
 		<docker.plugin.version>1.2.2</docker.plugin.version>
 		<docker.image.prefix>carelink</docker.image.prefix>
 	</properties>
@@ -42,11 +40,6 @@
 				<groupId>org.projectlombok</groupId>
 				<artifactId>lombok</artifactId>
 				<version>${lombok.version}</version>
-			</dependency>
-			<dependency>
-				<groupId>org.yaml</groupId>
-				<artifactId>snakeyaml</artifactId>
-				<version>${snakeyaml.version}</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
