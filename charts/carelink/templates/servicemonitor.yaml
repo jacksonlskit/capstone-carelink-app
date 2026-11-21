@@ -1,9 +1,13 @@
+{{- /*
+Tells the Prometheus Operator (staging only, see monitoring in values.yaml) to
+scrape every service's /actuator/prometheus on the management port. The
+release label is what the staging Prometheus selects ServiceMonitors by.
+*/ -}}
 {{- if .Values.monitoring.serviceMonitor.enabled }}
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
   name: carelink-services
-  namespace: {{ .Release.Namespace }}
   labels:
     release: kube-prometheus-stack
 spec:
@@ -15,12 +19,11 @@ spec:
       - key: app
         operator: In
         values:
-          - api-gateway
-          - customers-service
-          - vets-service
-          - visits-service
+          {{- range $name, $svc := .Values.services }}
+          - {{ $name }}
+          {{- end }}
   endpoints:
-    - port: http
-      path: {{ .Values.monitoring.serviceMonitor.path }}
+    - port: management
+      path: /actuator/prometheus
       interval: {{ .Values.monitoring.serviceMonitor.interval }}
 {{- end }}

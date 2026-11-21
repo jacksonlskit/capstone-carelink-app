@@ -26,7 +26,7 @@ spec:
       topologySpreadConstraints:
         # Nodes: a hard rule. Two pods of the same service never share a node,
         # so losing one node can never take a whole service down (Use Case B:
-        # no single point of failure). With 5 nodes and 2 replicas (plus 1 extra
+        # no single point of failure). With 4 nodes and 2 replicas (plus 1 extra
         # pod during a rolling update) there is always a free node.
         - maxSkew: 1
           topologyKey: "kubernetes.io/hostname"
@@ -50,14 +50,29 @@ spec:
           image: "{{ $.Values.global.imageRegistry }}/{{ required "global.imagePrefix is required (set it in values-<env>.yaml)" $.Values.global.imagePrefix }}-{{ $name }}:{{ required "global.imageTag is required (the app pipeline sets it on env/<env>)" $.Values.global.imageTag }}"
           imagePullPolicy: IfNotPresent
           ports:
-            - containerPort: {{ $svc.port }}
+            - name: http
+              containerPort: {{ $svc.port }}
+            - name: management
+              containerPort: {{ $.Values.management.port }}
           env:
             - name: SERVER_PORT
               value: "{{ $svc.port }}"
+            # Actuator on its own port, never routed by the Ingress or the
+            # gateway (see management in values.yaml). Prometheus scrapes
+            # /actuator/prometheus there.
+            - name: MANAGEMENT_SERVER_PORT
+              value: "{{ $.Values.management.port }}"
             - name: MANAGEMENT_ENDPOINT_RESTART_ENABLED
               value: "false"
             - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
-              value: "health,info"
+              value: "health,info,prometheus"
+            # Liveness and readiness also on the main port, as /livez and
+            # /readyz, so the probes and the ALB check the server that handles
+            # real requests (Spring Boot 2.6+).
+            - name: MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED
+              value: "true"
+            - name: MANAGEMENT_ENDPOINT_HEALTH_PROBES_ADDADDITIONALPATHS
+              value: "true"
             - name: SPRING_CLOUD_KUBERNETES_RELOAD_ENABLED
               value: "false"
             - name: MANAGEMENT_METRICS_EXPORT_WAVEFRONT_ENABLED
@@ -80,20 +95,20 @@ spec:
             {{- toYaml $svc.resources | nindent 12 }}
           startupProbe:
             httpGet:
-              path: /actuator/health/liveness
+              path: /livez
               port: {{ $svc.port }}
             initialDelaySeconds: 25
             periodSeconds: 10
             failureThreshold: 30
           livenessProbe:
             httpGet:
-              path: /actuator/health/liveness
+              path: /livez
               port: {{ $svc.port }}
             periodSeconds: 15
             failureThreshold: 3
           readinessProbe:
             httpGet:
-              path: /actuator/health/readiness
+              path: /readyz
               port: {{ $svc.port }}
             periodSeconds: 10
             failureThreshold: 3
