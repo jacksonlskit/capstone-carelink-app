@@ -24,7 +24,8 @@ spec:
             } == 0
           for: 2m
           labels:
-            severity: critical
+            # Same scale as the infra repo's rules (page = act now, ticket = later).
+            severity: page
             team: carelink
           annotations:
             summary: "CareLink service endpoint is unavailable"
