@@ -27,6 +27,8 @@ concurrency:
 env:
   SERVICES: api-gateway customers-service vets-service visits-service
   IMAGE_TAG: ${{ github.sha }}
+  # Same pinned version as ci.yaml; bump both together.
+  TRIVY_IMAGE: aquasec/trivy:0.76.2
 
 jobs:
   staging:
@@ -69,6 +71,18 @@ jobs:
               continue
             fi
             docker build -t "$REGISTRY/$repo:$IMAGE_TAG" -f "services/$s/Dockerfile" .
+            # Same gate as CI, on the image this run built: only a scanned image
+            # reaches ECR, and production later copies exactly these images.
+            docker run --rm \
+              -v /var/run/docker.sock:/var/run/docker.sock \
+              -v "$PWD:/workspace" \
+              -w /workspace \
+              "$TRIVY_IMAGE" image \
+              --ignorefile .trivyignore \
+              --show-suppressed \
+              --severity CRITICAL \
+              --exit-code 1 \
+              "$REGISTRY/$repo:$IMAGE_TAG"
             docker push "$REGISTRY/$repo:$IMAGE_TAG"
           done
 
