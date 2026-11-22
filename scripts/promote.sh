@@ -9,7 +9,10 @@
 # `git log origin/env/production` is the production deployment history.
 #
 # env/* branches are written only by the pipeline (cd.yaml); people change the
-# app through pull requests to main.
+# app through pull requests to main. GitHub enforces this for env/production: a
+# ruleset (infra repo, oicd-bootstrap/main.tf) refuses every push except one
+# made with the deploy key that the approved production job checks out with.
+# The script pushes to "origin" and does not care which credentials it holds.
 #
 # Usage: scripts/promote.sh <staging|production> <git-sha>
 # Prints the env-branch commit that Argo CD should end up on (last line).

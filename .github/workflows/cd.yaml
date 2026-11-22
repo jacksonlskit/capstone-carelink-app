@@ -3,9 +3,10 @@ name: CD (Build, Push & Deploy via Argo CD)
 # Flow: feature branch -> PR (CI gates + review) -> merge to main -> this workflow:
 #   1. staging:    build + push images, record the deployment on env/staging,
 #                  wait until Argo CD reports staging Synced and Healthy
-#   2. production: waits for approval (GitHub environment "production"),
-#                  copies the same images to the production repositories,
-#                  records the deployment on env/production, waits for Argo CD
+#   2. production: waits for approval (GitHub environment "production",
+#                  runs from main only), copies the same images to the
+#                  production repositories, records the deployment on
+#                  env/production with the deploy key, waits for Argo CD
 # The pipeline never runs kubectl apply; Argo CD applies what Git says.
 
 on:
@@ -110,13 +111,30 @@ jobs:
     environment: production # pauses here until a required reviewer approves
     permissions:
       id-token: write
-      contents: write # push the deployment record to env/production
+      # Read only: the ruleset app-env-production-lock (infra repo,
+      # oicd-bootstrap/main.tf) refuses GITHUB_TOKEN pushes to env/production.
+      # The deployment record is pushed with the deploy key instead.
+      contents: read
 
     steps:
-      - name: Checkout code
+      - name: Check that the env/production deploy key is available
+        env:
+          HAS_KEY: ${{ secrets.ENV_PRODUCTION_DEPLOY_KEY != '' }}
+        run: |
+          if [ "$HAS_KEY" != "true" ]; then
+            echo "::error::Secret ENV_PRODUCTION_DEPLOY_KEY is missing from the production environment, so this job cannot record the deployment on env/production. See Bootstrap in the infra repo README."
+            exit 1
+          fi
+
+      - name: Checkout code (with the env/production deploy key)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          # GitHub gives this environment secret only to this job, after the
+          # production approval. With ssh-key set, checkout clones over SSH and
+          # keeps the key configured, so the fetch and push of env/production in
+          # scripts/promote.sh use it: the only key the ruleset lets through.
+          ssh-key: ${{ secrets.ENV_PRODUCTION_DEPLOY_KEY }}
 
       - name: Configure AWS credentials (production role via OIDC)
         uses: aws-actions/configure-aws-credentials@v4
