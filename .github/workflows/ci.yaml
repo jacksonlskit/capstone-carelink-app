@@ -11,6 +11,12 @@ on:
 permissions:
   contents: read
 
+env:
+  # Pinned on purpose: with :latest a new Trivy release could change what the
+  # gates find (or how they behave) without any change in this repo. Bump it
+  # deliberately, together with cd.yaml.
+  TRIVY_IMAGE: aquasec/trivy:0.76.2
+
 jobs:
   # ============================================================================
   # 1. Build and Dependency Security Gate (SCA)
@@ -45,10 +51,11 @@ jobs:
             -v /home/runner/.m2:/root/.m2:ro \
             -v ${{ github.workspace }}:/workspace \
             -w /workspace \
-            aquasec/trivy:latest fs . \
+            "$TRIVY_IMAGE" fs . \
             --scanners vuln \
             --offline-scan \
             --ignorefile .trivyignore \
+            --show-suppressed \
             --severity CRITICAL,HIGH \
             --exit-code 1
 
@@ -89,8 +96,9 @@ jobs:
             -v /var/run/docker.sock:/var/run/docker.sock \
             -v ${{ github.workspace }}:/workspace \
             -w /workspace \
-            aquasec/trivy:latest image \
+            "$TRIVY_IMAGE" image \
             --ignorefile .trivyignore \
+            --show-suppressed \
             --severity CRITICAL \
             --exit-code 1 \
             carelink/${{ matrix.service }}:${{ github.sha }}
