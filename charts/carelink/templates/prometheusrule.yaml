@@ -1,9 +1,14 @@
 {{- /*
-Alert when Prometheus cannot scrape a service pod (the pod is down or not
-answering). Staging only, see monitoring in values.yaml. Alertmanager adds
-environment=<env> and routes it to Discord (infra repo, observability/alerting).
-The public health check alert lives in the infra repo
-(observability/alerting/rules/service-alerts.yaml), so it is not repeated here.
+Alerts from the services' own metrics, in every environment that enables
+monitoring.prometheusRule (staging and production):
+- CareLinkServiceDown: Prometheus cannot scrape a service pod (down or not
+  answering).
+- CareLinkServiceErrorRate: a service answers more than 5% of its requests with
+  a 5xx status for 10 minutes. It replaces the CloudWatch "error burst" alarms,
+  which read a Container Insights log group that receives no logs.
+Prometheus adds environment=<env>; Alertmanager routes both to Discord (infra
+repo, observability/alerting*). The public health check alert lives in the infra
+repo (service-alerts.yaml), so it is not repeated here.
 */ -}}
 {{- if .Values.monitoring.prometheusRule.enabled }}
 apiVersion: monitoring.coreos.com/v1
@@ -30,4 +35,26 @@ spec:
           annotations:
             summary: "CareLink service endpoint is unavailable"
             description: "{{ "{{" }} $labels.service {{ "}}" }} pod {{ "{{" }} $labels.pod {{ "}}" }} in namespace {{ .Release.Namespace }} has not answered Prometheus for more than 2 minutes."
+
+    - name: carelink.service.errors
+      rules:
+        - alert: CareLinkServiceErrorRate
+          # 5xx share of each service's own requests (actuator excluded). The
+          # second condition skips services with almost no traffic, where one
+          # failed request would already be a high percentage.
+          expr: |
+            (
+              sum by (service) (rate(http_server_requests_seconds_count{namespace="{{ .Release.Namespace }}", service=~"{{ keys .Values.services | sortAlpha | join "|" }}", uri!~"/actuator.*", status=~"5.."}[5m]))
+              /
+              sum by (service) (rate(http_server_requests_seconds_count{namespace="{{ .Release.Namespace }}", service=~"{{ keys .Values.services | sortAlpha | join "|" }}", uri!~"/actuator.*"}[5m]))
+            ) > 0.05
+            and
+            sum by (service) (rate(http_server_requests_seconds_count{namespace="{{ .Release.Namespace }}", service=~"{{ keys .Values.services | sortAlpha | join "|" }}", uri!~"/actuator.*"}[5m])) > 0.05
+          for: 10m
+          labels:
+            severity: ticket
+            team: carelink
+          annotations:
+            summary: "CareLink service returns too many server errors"
+            description: "{{ "{{" }} $labels.service {{ "}}" }} in namespace {{ .Release.Namespace }} answered {{ "{{" }} $value | humanizePercentage {{ "}}" }} of its requests with a 5xx status over the last 5 minutes, for more than 10 minutes. Check its logs in Grafana (Loki) and the database."
 {{- end }}

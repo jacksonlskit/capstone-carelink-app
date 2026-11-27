@@ -4,7 +4,7 @@ global:
   environment: production
   imagePrefix: carelink-production
   # Set by the app pipeline on branch env/production; empty on main on purpose.
-  imageTag: "c5a706039035a65e6324df0652f798c0d4ba395e"
+  imageTag: "0ed9396cdcfef21b5e9bb7ef82e2fcc72dd9e03a"
 
 ingress:
   enabled: true
@@ -30,3 +30,12 @@ ingress:
     alb.ingress.kubernetes.io/tags: Project=capstone-project-group-03,Environment=production
     # external-dns (infra repo) points this hostname at the current ALB.
     external-dns.alpha.kubernetes.io/hostname: carelink-production.sctp-sandbox.com
+
+# Production runs kube-prometheus-stack too (infra repo, observability/): scrape
+# the services' own metrics and alert (through Alertmanager to Discord) when one
+# is down or returns too many server errors. Same as staging.
+monitoring:
+  serviceMonitor:
+    enabled: true
+  prometheusRule:
+    enabled: true
