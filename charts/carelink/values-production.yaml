@@ -30,3 +30,12 @@ ingress:
     alb.ingress.kubernetes.io/tags: Project=capstone-project-group-03,Environment=production
     # external-dns (infra repo) points this hostname at the current ALB.
     external-dns.alpha.kubernetes.io/hostname: carelink-production.sctp-sandbox.com
+
+# Production runs kube-prometheus-stack too (infra repo, observability/): scrape
+# the services' own metrics and alert (through Alertmanager to Discord) when one
+# is down or returns too many server errors. Same as staging.
+monitoring:
+  serviceMonitor:
+    enabled: true
+  prometheusRule:
+    enabled: true

@@ -45,8 +45,9 @@ management:
   port: 8090
 
 # Prometheus Operator objects (templates/servicemonitor.yaml, prometheusrule.yaml).
-# Off by default: only staging runs Prometheus. Production has no ServiceMonitor
-# or PrometheusRule CRDs, so rendering them there would make the sync fail.
+# Off by default; staging and production turn them on in their values files
+# (both run kube-prometheus-stack, which provides the CRDs). A cluster without
+# those CRDs must keep them off, or the Argo CD sync fails.
 monitoring:
   serviceMonitor:
     enabled: false

@@ -1,7 +1,7 @@
 {{- /*
-Tells the Prometheus Operator (staging only, see monitoring in values.yaml) to
-scrape every service's /actuator/prometheus on the management port. The
-release label is what the staging Prometheus selects ServiceMonitors by.
+Tells the Prometheus Operator (staging and production, see monitoring in
+values.yaml) to scrape every service's /actuator/prometheus on the management
+port. The release label is what Prometheus selects ServiceMonitors by.
 */ -}}
 {{- if .Values.monitoring.serviceMonitor.enabled }}
 apiVersion: monitoring.coreos.com/v1
